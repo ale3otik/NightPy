@@ -53,6 +53,9 @@ from keras.losses import binary_crossentropy, mse
 from keras.callbacks import LearningRateScheduler
 
 
+def score(loss):
+    return 10 / (loss + 1e-9) ** 0.5
+
 class TelegramCallback(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
         os.system("telegram-send 'Start NN training'")
@@ -64,7 +67,8 @@ class TelegramCallback(keras.callbacks.Callback):
         os.system("telegram-send 'Epoch {}'".format(epoch + 1))
 
     def on_epoch_end(self, epoch, logs={}):
-        os.system("telegram-send 'loss: {:.4f}, val_loss: {:.4f}'".format(logs.get('loss'), logs.get('val_loss')))
+        os.system("telegram-send 'score: {:.4f}, val_score: {:.4f}'".format(
+            logs.get('loss'), logs.get('val_loss')))
 
     def on_batch_begin(self, batch, logs={}):
         return
@@ -74,75 +78,85 @@ class TelegramCallback(keras.callbacks.Callback):
 
 
 class DataGenerator:
-    def __init__(self, bad_columns=None, mean=None, sd=None):
+    def __init__(self, batch_size=10000, feature_expander=None, 
+             forecast_win=10,features_win=100,
+            bad_columns=None, mean=None, sd=None):
+
+        assert min(features_win, forecast_win) > 0
+        features_win -= 1
+        forecast_win -= 1
+
+        self.batch_size = batch_size
+        self.feature_expander = feature_expander
+        self.bad_columns = bad_columns
+        self.forecast_win = forecast_win
+        self.features_win = features_win
         self.mean = mean
         self.sd = sd
         self.bad_columns = bad_columns
         
-    def fit(self, X):
-#         X = deepcopy(X).fillna(0)
-        self.mean = X.mean()
-        self.sd = X.std()
-        print('end fit')
+    def fit(self, X=None):
+        if X is not None:
+            X = deepcopy(X).fillna(0)
+            self.mean = X.mean()
+            self.sd = X.std()
+            print('end fit')
         
+
     def normalize(self, X):
-        X  = (X - self.mean) / self.sd
-        X = np.clip(X, a_min=-10, a_max=10)
+        if self.mean is not None:
+            X  = (X - self.mean) / self.sd
+            X = np.clip(X, a_min=-10, a_max=10)
         return X
     
-    def do_fucking_job(self, X, y, feature_expander, 
-                       features_win, forecast_win):
+    def do_fucking_job(self, X, y):
+
+        assert max(self.forecast_win, self.features_win) < X.shape[0]
         
-            assert min(features_win, forecast_win) > 0
+        
+        if self.feature_expander is not None:
+            new_features = []
+            for i in np.arange(self.features_win, X.shape[0]):
+                new_features.append(self.feature_expander(
+                    X.iloc[i - self.features_win:i + 1]))
+            new_features = np.array(new_features)
+            wide = new_features.shape[1]
+            dummy_cells = np.zeros((features_win, wide))
+            new_features = np.concatenate((dummy_cells, new_features),
+                                          axis=0)
+            X = pd.concat((X, pd.DataFrame(new_features)),axis=1)
             
-            features_win -= 1
-            forecast_win -= 1
+        if self.bad_columns is not None:
+            X = X.drop(self.bad_columns, axis=1)
             
-            assert max(forecast_win, features_win) < X.shape[0]
+        Y = deepcopy(X)
+        
+        for i in np.arange(self.forecast_win) + 1:
+            Y = pd.concat((Y, X.shift(periods=i)),axis=1)
+        
+        Y.columns = np.arange(len(Y.columns))
+
             
-            '''
-                expander must return numpy array with shape (new_features_len)
-            '''
-            
-            if feature_expander is not None:
-                new_features = []
-                for i in np.arange(features_win, X.shape[0]):
-                    new_features.append(feature_expander(
-                        X.iloc[i - features_win:i + 1]))
-                new_features = np.array(new_features)
-                wide = new_features.shape[1]
-                dummy_cells = np.zeros((features_win, wide))
-                new_features = np.concatenate((dummy_cells, new_features),
-                                              axis=0)
-                X = pd.concat((X, pd.DataFrame(new_features)),axis=1)
-                
-            if self.bad_columns is not None:
-                X = X.drop(self.bad_columns, axis=1)
-                
-            Y = deepcopy(X)
-            
-            for i in np.arange(forecast_win) + 1:
-                Y = pd.concat((Y, X.shift(periods=i)),axis=1)
-            
-            Y.columns = np.arange(len(Y.columns))
-                
-            Y = Y.fillna(Y.median(axis=0))
-            return Y, y
+        Y = Y.fillna(Y.median(axis=0))
+
+
+        # print(Y.shape[1])
+
+        return Y, y
             
     
-    def flow(self, X, y, batch_size=10000, feature_expender=None, 
-             forecast_win=10,features_win=100):
+    def flow(self, X, y):
         ranges = np.arange(X.shape[0])
-        assert batch_size <= len(ranges)
+        assert self.batch_size <= len(ranges)
         while True:
             np.random.shuffle(ranges)
-            for i in np.arange(0, len(ranges) - batch_size + 1, batch_size):
-                inds = ranges[i:i + batch_size]
+            for i in np.arange(0, len(ranges) - self.batch_size + 1, self.batch_size):
+                inds = ranges[i:i + self.batch_size]
                 x_batch, y_batch = X.iloc[inds], y[inds]
-                x_batch, y_batch = self.do_fucking_job(x_batch, y_batch,
-                                feature_expender, forecast_win, features_win)
-                #  USE normalize if you REALLY need
+                x_batch, y_batch = self.do_fucking_job(x_batch, y_batch)
+                #  USE normalize if you REALY need
                 x_batch = self.normalize(x_batch)
-                x_batch = np.array(x_batch)
-                print('batch released')
+                x_batch = np.array(x_batch, dtype=np.float32).reshape([1] + list(x_batch.shape))
+                y_batch = y_batch.reshape(1,-1,1)
+                # print('batch released')
                 yield (x_batch, y_batch)     
