@@ -68,7 +68,7 @@ class TelegramCallback(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         os.system("telegram-send 'score: {:.4f}, val_score: {:.4f}'".format(
-            logs.get('loss'), logs.get('val_loss')))
+            score(logs.get('loss')), score(logs.get('val_loss'))))
 
     def on_batch_begin(self, batch, logs={}):
         return
@@ -79,7 +79,7 @@ class TelegramCallback(keras.callbacks.Callback):
 
 class DataGenerator:
     def __init__(self, batch_size=10000, feature_expander=None, 
-             forecast_win=10,features_win=100,
+             forecast_win=10,features_win=100, isLstm=False,
             bad_columns=None, mean=None, sd=None):
 
         assert min(features_win, forecast_win) > 0
@@ -91,6 +91,7 @@ class DataGenerator:
         self.bad_columns = bad_columns
         self.forecast_win = forecast_win
         self.features_win = features_win
+        self.isLstm = isLstm
         self.mean = mean
         self.sd = sd
         self.bad_columns = bad_columns
@@ -140,7 +141,6 @@ class DataGenerator:
             
         Y = Y.fillna(Y.median(axis=0))
 
-
         # print(Y.shape[1])
 
         return Y, y
@@ -150,13 +150,16 @@ class DataGenerator:
         ranges = np.arange(X.shape[0])
         assert self.batch_size <= len(ranges)
         while True:
-            for i in np.arange(0, len(rangs) - self.batch_size + 1, self.batch_size):
+            for i in np.arange(0, len(ranges) - self.batch_size + 1, self.batch_size):
                 inds = ranges[i:i + self.batch_size]
                 x_batch, y_batch = X.iloc[inds], y[inds]
                 x_batch, y_batch = self.do_fucking_job(x_batch, y_batch)
                 #  USE normalize if you REALY need
-                x_batch = self.normalize(x_batch)
-                x_batch = np.array(x_batch, dtype=np.float32).reshape([1] + list(x_batch.shape))
-                y_batch = y_batch.reshape(1, -1, 1)
+                # x_batch = self.normalize(x_batch)
+                x_batch = np.array(x_batch, dtype=np.float32)
+                y_batch = y_batch.reshape(-1, 1)
+                if self.isLstm:
+                    x_batch = x_batch.reshape([1] + list(x_batch.shape))
+                    y_batch = y_batch.reshape(1, -1, 1)
                 # print('batch released')
                 yield (x_batch, y_batch)     
