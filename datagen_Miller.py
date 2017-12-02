@@ -95,6 +95,7 @@ class DataGenerator:
         self.sd = sd
         self.bad_columns = bad_columns
         
+
     def fit(self, X=None):
         if X is not None:
             X = deepcopy(X).fillna(0)
@@ -109,6 +110,7 @@ class DataGenerator:
             X = np.clip(X, a_min=-10, a_max=10)
         return X
     
+
     def do_fucking_job(self, X, y):
 
         assert max(self.forecast_win, self.features_win) < X.shape[0]
@@ -148,8 +150,7 @@ class DataGenerator:
         ranges = np.arange(X.shape[0])
         assert self.batch_size <= len(ranges)
         while True:
-            np.random.shuffle(ranges)
-            for i in np.arange(0, len(ranges) - self.batch_size + 1, self.batch_size):
+            for i in np.arange(0, len(rangs) - self.batch_size + 1, self.batch_size):
                 inds = ranges[i:i + self.batch_size]
                 x_batch, y_batch = X.iloc[inds], y[inds]
                 x_batch, y_batch = self.do_fucking_job(x_batch, y_batch)
