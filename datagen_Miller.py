@@ -113,7 +113,6 @@ class DataGenerator:
 
         assert max(self.forecast_win, self.features_win) < X.shape[0]
         
-        
         if self.feature_expander is not None:
             new_features = []
             for i in np.arange(self.features_win, X.shape[0]):
@@ -157,6 +156,6 @@ class DataGenerator:
                 #  USE normalize if you REALY need
                 x_batch = self.normalize(x_batch)
                 x_batch = np.array(x_batch, dtype=np.float32).reshape([1] + list(x_batch.shape))
-                y_batch = y_batch.reshape(1,-1,1)
+                y_batch = y_batch.reshape(1, -1, 1)
                 # print('batch released')
                 yield (x_batch, y_batch)     
