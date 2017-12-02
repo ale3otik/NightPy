@@ -76,6 +76,6 @@ def keras_lstm_model_1(max_sequence_length=None, input_shape=None, lstm_units=10
     # print(dense.shape)
     # print(input.shape)
     model = Model(input, dense)
-    optimizer = optimizers.Adam()
+    optimizer = optimizers.Adam(1e-3, clipvalue=10.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     return model
