@@ -157,14 +157,20 @@ class DataGenerator:
                 i = np.random.randint(len(ranges) - self.batch_size)
                 inds = ranges[i:i + self.batch_size]
                 x_batch, y_batch = X.iloc[inds], y[inds]
-                x_batch, y_batch = self.do_fucking_job(x_batch, y_batch)
+                x_batch_tea, x_batch_coffee = x_batch.iloc[:, :x_batch.shape[1] // 2], \
+                                                x_batch.iloc[:, x_batch.shape[1] // 2:]
+                x_batch_tea, y_batch = self.do_fucking_job(x_batch_tea, y_batch)
+                x_batch_coffee, y_batch = self.do_fucking_job(x_batch_coffee, y_batch)
                 #  USE normalize if you REALY need
                 # x_batch = self.normalize(x_batch)
-                x_batch = np.array(x_batch, dtype=np.float32)
+                x_batch_tea = np.array(x_batch_tea, dtype=np.float32)
+                x_batch_coffee = np.array(x_batch_coffee, dtype=np.float32)
+                x_batch = np.concatenate((x_batch_tea, x_batch_coffee), axis=1)
                 y_batch = y_batch.reshape(-1, 1)
                 if self.isLstm:
                     x_batch = x_batch.reshape([1] + list(x_batch.shape))
                     y_batch = y_batch.reshape(1, -1, 1)
                 # print('batch released')
                 yield (x_batch, y_batch)     
+
 
