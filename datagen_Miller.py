@@ -137,26 +137,24 @@ class DataGenerator:
         if self.bad_columns is not None:
             X = X.drop(self.bad_columns, axis=1)
             
-        Y = deepcopy(X)
+        X = deepcopy(X)
         
-        for i in np.arange(self.forecast_win) + 1:
-            Y = pd.concat((Y, X.shift(periods=i)),axis=1)
-        
-        Y.columns = np.arange(len(Y.columns))
+        X.columns = np.arange(len(X.columns))
 
             
-        Y = Y.fillna(Y.median(axis=0))
+        X = X.fillna(X.median(axis=0))
 
         # print(Y.shape[1])
 
-        return Y, y
+        return X, y
             
     
     def flow(self, X, y):
         ranges = np.arange(X.shape[0])
         assert self.batch_size <= len(ranges)
         while True:
-            for i in np.arange(0, len(ranges) - self.batch_size + 1, self.batch_size):
+            #for i in np.arange(0, len(ranges) - self.batch_size + 1, self.batch_size):
+                i = np.random.randint(len(ranges) - self.batch_size)
                 inds = ranges[i:i + self.batch_size]
                 x_batch, y_batch = X.iloc[inds], y[inds]
                 x_batch, y_batch = self.do_fucking_job(x_batch, y_batch)
@@ -169,3 +167,4 @@ class DataGenerator:
                     y_batch = y_batch.reshape(1, -1, 1)
                 # print('batch released')
                 yield (x_batch, y_batch)     
+
