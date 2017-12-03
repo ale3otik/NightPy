@@ -65,9 +65,15 @@ class MyClient(hackathon_protocol.Client):
             self.buffer_main_tea = self.buffer_main_tea.append(
                 pd.DataFrame(np.array([np.array(cvs_line_values)]), columns=self.columns), ignore_index=True)
 
-            if self.buffer_main_tea.shape[0] >= self.win_size:
-                features = count_all_features(self.buffer_main_tea.iloc[-self.win_size:])
-                to_append = pd.DataFrame(np.concatenate([np.array(cvs_line_values), features])).T
+            # if self.buffer_main_tea.shape[0] >= self.win_size:
+            #     features = count_all_features(self.buffer_main_tea.iloc[-self.win_size:])
+            #     to_append = pd.DataFrame(np.concatenate([np.array(cvs_line_values), features])).T
+        if self.buffer_main.shape[0] >= self.win_size:
+            print(self.buffer_main.columns)
+            print(self.buffer_main.iloc[0])
+            features = count_all_features(self.buffer_main.iloc[-self.win_size:])
+            to_append = pd.DataFrame(np.concatenate([np.array(cvs_line_values), features])).T
+            print('to_append', to_append.shape)
 
                 self.buffer_with_features_tea = self.buffer_with_features_tea.append(to_append, ignore_index=True)
                 if self.buffer_with_features_tea.shape[0] > self.win_size:
