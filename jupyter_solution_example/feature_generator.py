@@ -20,6 +20,7 @@ def general_features(df):
     return features
 
 def spread_tightness(df):
+    # df = pd.DataFrame(df, dtype=np.float32)
     return (df.iloc[-1]['ASK_P_1'] - df.iloc[-1]['BID_P_1']) / df.iloc[-1]['BID_P_1']
 
 def valueWP(df, V):
@@ -87,9 +88,11 @@ def OIR_VOI(df): #Order Imbalanced Ratio
     return [ratio_orders, ratio_volume, Vbid_orders - Vask_orders, Vbid_volume - Vbid_volume]
 
 def count_all_features(window):
+    window = window[window['0_ID'] == 'TEA']
+    window = pd.DataFrame(window.drop(['0_ID','1_TIME'],axis=1), dtype=np.float32)
     mean_volume = np.mean([window['BID_V_' + str(i)] * window['BID_P_' + str(i)] for i in range(1, 11)])
     features = np.array([spread_tightness(window)] + 
-                        [valueWP(window, mean_volume)] + 
+                        [valueWP(window, mean_volume)] +
                         [assymetry(window)] +
                         general_features(window))
     return features
