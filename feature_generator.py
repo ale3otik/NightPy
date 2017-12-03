@@ -86,10 +86,82 @@ def OIR_VOI(df): #Order Imbalanced Ratio
     
     return [ratio_orders, ratio_volume, Vbid_orders - Vask_orders, Vbid_volume - Vbid_volume]
 
+def new_features(df): #накопленный объем заявок для k реек для бида и аска
+    features = []
+    row = df.iloc[-1]
+
+    cum_volume_bid_orders = [np.sum([row['BID_V_' + str(i)] for i in range(1, j)]) for j in range(2, 11)]
+    cum_volume_ask_orders = [np.sum([row['ASK_V_' + str(i)] for i in range(1, j)]) for j in range(2, 11)]
+
+    cum_volume_bid_volume = [np.sum([row['BID_V_' + str(i)] * row['BID_P_' + str(i)] for i in range(1, j)]) for j in range(2, 11)]
+    cum_volume_ask_volume = [np.sum([row['ASK_V_' + str(i)] * row['ASK_P_' + str(i)] for i in range(1, j)]) for j in range(2, 11)]
+
+    features += [cum_volume_bid_orders, cum_volume_ask_orders, cum_volume_bid_volume, cum_volume_ask_volume]
+
+    bid_to_ask_orders = [cum_volume_bid_orders[i] / cum_volume_ask_orders[i] for i in range(0, 9)]
+    bid_to_ask_volume = [cum_volume_bid_volume[i] / cum_volume_ask_volume[i] for i in range(0, 9)]
+
+    features += [bid_to_ask_orders, bid_to_ask_volume]
+
+    bid_av_w_price = [cum_volume_bid_volume[i] / cum_volume_bid_orders[i] for i in range(0, 9)]
+    ask_av_w_price = [cum_volume_ask_volume[i] / cum_volume_ask_orders[i] for i in range(0, 9)]
+
+    features += [bid_av_w_price, ask_av_w_price]
+
+    bid_to_ask = [bid_av_w_price[i] / ask_av_w_price[i] for i in range(0, 9)]
+
+    features += [bid_to_ask,]
+
+    window = 10
+
+    row = df.tail(window)
+
+    bid_volume_window_order = []
+    ask_volume_window_order = []
+
+    bid_volume_window_volume = []
+    ask_volume_window_volume = []
+
+    for j in range(0, window):
+
+        bid_volume_window_order.append(np.sum([row['BID_V_' + str(i)].iloc[j] for i in range(1, 11)]))
+        ask_volume_window_order.append(np.sum([row['ASK_V_' + str(i)].iloc[j] for i in range(1, 11)]))
+
+        bid_volume_window_volume.append(np.sum([row['BID_V_' + str(i)].iloc[j] * row['BID_P_' + str(i)].iloc[j] for i in range(1, 11)]))
+        ask_volume_window_volume.append(np.sum([row['ASK_V_' + str(i)].iloc[j] * row['ASK_P_' + str(i)].iloc[j] for i in range(1, 11)]))
+
+    av_bid_volume_window_order = np.sum(bid_volume_window_order) / window
+    av_ask_volume_window_order = np.sum(ask_volume_window_order) / window
+
+    av_bid_volume_window_volume = np.sum(bid_volume_window_volume) / window
+    av_ask_volume_window_volume = np.sum(ask_volume_window_volume) / window
+
+    max_bid_volume_window_order = np.max(bid_volume_window_order)
+    max_ask_volume_window_order = np.max(ask_volume_window_order)
+
+    max_bid_volume_window_volume = np.max(bid_volume_window_volume) / window
+    max_ask_volume_window_volume = np.max(ask_volume_window_volume) / window
+
+    min_bid_volume_window_order = np.min(bid_volume_window_order)
+    min_ask_volume_window_order = np.min(ask_volume_window_order)
+
+    min_bid_volume_window_volume = np.min(bid_volume_window_volume) / window
+    min_ask_volume_window_volume = np.min(ask_volume_window_volume) / window
+    
+    result = []
+    for i in features:
+        if type(i) == list:
+            for j in i:
+                result.append(j)
+        else:
+            result.append(i)
+    return result
+
 def count_all_features(window):
     mean_volume = np.mean([window['BID_V_' + str(i)] * window['BID_P_' + str(i)] for i in range(1, 11)])
     features = np.array([spread_tightness(window)] + 
                         [valueWP(window, mean_volume)] + 
                         [assymetry(window)] +
-                        general_features(window))
+                        general_features(window) + 
+                        new_features(window))
     return features

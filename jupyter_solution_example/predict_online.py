@@ -56,7 +56,7 @@ class MyClient(hackathon_protocol.Client):
             print(self.buffer_main.columns)
             print(self.buffer_main.iloc[0])
             features = count_all_features(self.buffer_main.iloc[-self.win_size:])
-            to_append = pd.DataFrame(np.concatenate([np.array(cvs_line_values), features]))
+            to_append = pd.DataFrame(np.concatenate([np.array(cvs_line_values), features])).T
             print('to_append', to_append.shape)
 
             self.buffer_with_features = self.buffer_with_features.append(to_append, ignore_index=True)
