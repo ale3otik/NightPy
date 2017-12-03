@@ -123,10 +123,16 @@ class DataGenerator:
                     X.iloc[i - self.features_win:i + 1]))
             new_features = np.array(new_features)
             wide = new_features.shape[1]
-            dummy_cells = np.zeros((features_win, wide))
+            dummy_cells = np.zeros((self.features_win, wide))
             new_features = np.concatenate((dummy_cells, new_features),
                                           axis=0)
-            X = pd.concat((X, pd.DataFrame(new_features)),axis=1)
+
+
+            new_features = pd.DataFrame(new_features)
+            X.index = new_features.index
+
+            X = pd.concat((X, new_features),axis=1)
+
             
         if self.bad_columns is not None:
             X = X.drop(self.bad_columns, axis=1)
