@@ -1,15 +1,16 @@
 import keras.backend as K
-from keras.layers import Dense, Activation, Input, LSTM, Dropout, multiply, Lambda
+from keras.layers import Dense, Activation, Input, LSTM,LSTMCell, Dropout, multiply, Lambda
 from keras.layers import RNN
 from keras.models import Model, Sequential
 from keras import optimizers
 from keras import regularizers 
 import tensorflow as tf 
-from keras.activations import sigmoid, linear
+from keras.activations import sigmoid, linear, tanh
 from keras import backend as K
 from keras.engine.topology import Layer
 import numpy as np
-
+from keras.losses import mean_squared_error
+from keras import optimizers
 # class PhasedLSTMCell(keras.layers.Layer):
 
 #     def __init__(self, units, cell,  **kwargs):
@@ -65,8 +66,16 @@ import numpy as np
 
 def keras_lstm_model_1(max_sequence_length=None, input_shape=None, lstm_units=100, eps_reg=1e-2):
     input = Input(shape=(max_sequence_length, input_shape))
-    lstm_layer = LSTM(units=lstm_units ,return_sequences=True)(input)
+    state_input = Input(shape=(lstm_units,max_sequence_length))
+
+    print(state_input.shape)
     
+    cell =  LSTM(units=lstm_units,
+                        return_sequences=True, 
+                        return_state=True)
+    print(cell.cell.state_size)
+    
+    lstm_layer = cell(input, initial_state = [state_input])
     dense = Dense(1, input_shape=(max_sequence_length, lstm_units),
                     kernel_initializer='normal',
                     kernel_regularizer=regularizers.l2(eps_reg),
@@ -74,8 +83,39 @@ def keras_lstm_model_1(max_sequence_length=None, input_shape=None, lstm_units=10
 
     # print(lstm_layer.shape)
     # print(dense.shape)
-    # print(input.shape)
-    model = Model(input, dense)
+    # print(input.shape)s
+    model = Model([input, state_input], [dense, state])
     optimizer = optimizers.Adam(1e-3, clipvalue=10.0)
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     return model
+
+def myloss(y_true, y_pred):
+    print('true' ,y_true.shape)
+    print('pr', y_pred.shape)
+    return mean_squared_error(y_pred, y_true)
+def fake_loss(y_true,y_pred):
+    return mean_squared_error(0 * y_true,0 * y_pred)
+    
+def reccurent_model(input_shape, lstm_units=120, eps_reg=1e-2):
+  input = Input((None, input_shape))
+  input_state1 = Input((lstm_units,))
+  input_state2 = Input((lstm_units,))
+
+  cells = LSTMCell(lstm_units, activation=tanh)
+
+  layer = RNN(cells, return_sequences=True, return_state=True)
+  print(layer.cell.state_size)
+
+  outputs, states1, states2 = layer(input, (input_state1,input_state2))
+  print(outputs.shape)
+  print(states1.shape)
+  print(states2.shape)
+  densed = Dense(1,input_shape=(None, lstm_units),
+                    kernel_initializer='normal',
+                    kernel_regularizer=regularizers.l2(eps_reg),
+                    activation=linear)(outputs)
+  model = Model(inputs = [input, input_state1, input_state2], 
+                outputs=[densed,states1,states2])
+  optimizer = optimizers.Adam(1e-3, clipvalue=10.0)
+  model.compile(loss=[myloss, fake_loss, fake_loss], optimizer=optimizer)
+  return model
