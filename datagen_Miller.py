@@ -168,8 +168,8 @@ class DataGenerator:
                 x_batch = np.concatenate((x_batch_tea, x_batch_coffee), axis=1)
                 y_batch = y_batch.reshape(-1, 1)
                 if self.isLstm:
-                    x_batch = x_batch.reshape([1] + list(x_batch.shape))
-                    y_batch = y_batch.reshape(1, -1, 1)
+                    x_batch = [x_batch.reshape([1] + list(x_batch.shape)), np.zeros(1, 200), np.zeros(1, 200)]
+                    y_batch = [y_batch.reshape(1, -1), np.zeros(1, 200), np.zeros(1, 200)]
                 # print('batch released')
                 yield (x_batch, y_batch)     
 
